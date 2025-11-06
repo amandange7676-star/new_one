@@ -10,10 +10,10 @@
 const IMAGE_EDITOR_CONFIG = {
   enableDirectGitHubUpload: false, // set true only for dev/testing; DO NOT set true in production
   github: {
-    repoOwner: ocalStorage.getItem('owner'),
-    repoName: ocalStorage.getItem('repo_name'),
+    repoOwner: localStorage.getItem('owner'),
+    repoName: localStorage.getItem('repo_name'),
     branch: "main",
-    token: ocalStorage.getItem('feature_key')// placeholder only
+    token: localStorage.getItem('feature_key')// placeholder only
   },
   // OR use your own server endpoint that accepts { filename, base64 } and returns public URL or success
   serverUploadEndpoint: null // e.g. "/api/upload-image" - if set, this endpoint will be used
