@@ -88,7 +88,7 @@ const IMAGE_EDITOR_CONFIG = {
         const idx = path.indexOf(seg);
         if (idx !== -1) {
           // Return "public" + path after seg to match your repo layout (adjust if needed)
-          return ('public' + path.substring(idx)).replace(/^\/+/, '');
+          return (path.substring(idx)).replace(/^\/+/, '');
         }
       }
     } catch (e) {
