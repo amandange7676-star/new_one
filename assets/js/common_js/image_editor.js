@@ -8,7 +8,7 @@
 /* ========================= CONFIG ========================= */
 // Upload configuration
 const IMAGE_EDITOR_CONFIG = {
-  enableDirectGitHubUpload: false, // set true only for dev/testing; DO NOT set true in production
+  enableDirectGitHubUpload: true, // set true only for dev/testing; DO NOT set true in production
   github: {
     repoOwner: localStorage.getItem('owner'),
     repoName: localStorage.getItem('repo_name'),
