@@ -129,6 +129,7 @@ function resolveEditableElementFromTextNode(node){
 }
 
 function enableTextEditing(){
+   var wrapper = $('#wrapper').addClass('editableSection');
    wrapper.find('img').addClass('editable-image');
   wrapper.find('img').addClass('updateImg');
   const sel='*:not(script):not(style):not(noscript):not(head):not(title):not(meta):not(link)';
