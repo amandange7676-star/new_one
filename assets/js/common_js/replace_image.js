@@ -7,81 +7,55 @@
       const branch = "main"; 
 alert('image editing');
 
-document.addEventListener('DOMContentLoaded', enableAllImageEditing);
+document.addEventListener('DOMContentLoaded', enableClickImageEditing);
 
-async function enableAllImageEditing() {
+async function enableClickImageEditing() {
   const elements = [];
 
-  // 1️⃣ Collect <img> elements
+  // 1️⃣ All <img> tags
   document.querySelectorAll('img').forEach(img => {
     elements.push({ element: img, type: 'img', src: img.src });
   });
 
-  // 2️⃣ Collect inline background-image
+  // 2️⃣ Inline background-image
   document.querySelectorAll('*[style]').forEach(el => {
     const bg = el.style.backgroundImage;
     const match = bg.match(/url\(["']?(.*?)["']?\)/);
     if (match && match[1]) elements.push({ element: el, type: 'bg-inline', src: match[1] });
   });
 
-  // 3️⃣ Collect computed background-image (from external CSS)
+  // 3️⃣ Computed background-image (from external CSS)
   document.querySelectorAll('*').forEach(el => {
     const bg = getComputedStyle(el).backgroundImage;
     const match = bg && bg.match(/url\(["']?(.*?)["']?\)/);
     if (match && match[1]) {
-      // Avoid duplicates
       if (!elements.find(e => e.element === el)) {
         elements.push({ element: el, type: 'bg-computed', src: match[1] });
       }
     }
   });
 
-  console.log("Editable elements found:", elements);
+  console.log("Editable elements found:", elements.length);
 
-  // 4️⃣ Add edit buttons
+  // 4️⃣ Add .editable-image class + click handler
   elements.forEach(({ element, type, src }) => {
-    // Skip if already has a button
-    if (element.parentElement?.querySelector?.('.edit-btn')) return;
+    element.classList.add('editable-image');
 
-    // Make sure the element is positioned so the button can overlay
-    const wrapper = document.createElement('div');
-    wrapper.style.position = 'relative';
-    wrapper.style.display = getComputedStyle(element).display === 'block' ? 'block' : 'inline-block';
-    wrapper.style.width = element.offsetWidth + 'px';
-    wrapper.style.height = element.offsetHeight + 'px';
-    wrapper.style.overflow = 'hidden';
-
-    if (element.parentElement) {
-      element.parentElement.insertBefore(wrapper, element);
-      wrapper.appendChild(element);
-    }
-
-    // ✏️ Edit button
-    const editBtn = document.createElement('button');
-    editBtn.textContent = '🖉';
-    editBtn.className = 'edit-btn';
-    Object.assign(editBtn.style, {
-      position: 'absolute',
-      top: '5px',
-      right: '5px',
-      background: '#fff',
-      border: '1px solid #ccc',
-      borderRadius: '50%',
-      padding: '5px',
-      cursor: 'pointer',
-      zIndex: '9999'
-    });
-    wrapper.appendChild(editBtn);
-
-    // Hidden file input
+    // Create hidden file input for each element
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = 'image/*';
     fileInput.style.display = 'none';
-    wrapper.appendChild(fileInput);
+    document.body.appendChild(fileInput);
 
-    editBtn.addEventListener('click', () => fileInput.click());
+    // On click -> open file picker
+    element.addEventListener('click', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      fileInput.click();
+    });
 
+    // On file select -> upload + update
     fileInput.addEventListener('change', async () => {
       const file = fileInput.files[0];
       if (!file) return;
@@ -90,25 +64,26 @@ async function enableAllImageEditing() {
       const repoImagePath = extractRepoPath(src);
 
       if (!repoImagePath) {
-        alert(`❌ Can't resolve repo path for image: ${src}`);
+        alert('❌ Cannot resolve GitHub file path for this image.');
         return;
       }
 
       const sha = await getLatestSha(repoImagePath);
+
       const response = await fetch(
         `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${repoImagePath}`,
         {
-          method: 'PUT',
+          method: "PUT",
           headers: {
             Authorization: `token ${token}`,
-            Accept: 'application/vnd.github+json',
-            'Content-Type': 'application/json'
+            Accept: "application/vnd.github+json",
+            "Content-Type": "application/json"
           },
           body: JSON.stringify({
             message: `Update ${repoImagePath}`,
-            content: base64Content.split(',')[1],
-            sha,
-            branch
+            content: base64Content.split(",")[1],
+            sha: sha,
+            branch: branch
           })
         }
       );
@@ -122,12 +97,12 @@ async function enableAllImageEditing() {
           {
             headers: {
               Authorization: `token ${token}`,
-              Accept: 'application/vnd.github+json'
+              Accept: "application/vnd.github+json"
             }
           }
         );
         const latestData = await latest.json();
-        const imageBase64 = 'data:image/png;base64,' + latestData.content;
+        const imageBase64 = "data:image/png;base64," + latestData.content;
 
         if (type === 'img') {
           element.src = imageBase64;
@@ -135,13 +110,13 @@ async function enableAllImageEditing() {
           element.style.backgroundImage = `url(${imageBase64})`;
         }
       } else {
-        alert('Upload failed: ' + result.message);
+        alert("Upload failed: " + result.message);
       }
     });
   });
 }
 
-// 🧩 Convert file to base64
+// 🧩 Convert to Base64
 function toBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -151,40 +126,35 @@ function toBase64(file) {
   });
 }
 
-// 🧩 Get file SHA from GitHub
+// 🧩 Get SHA for existing file
 async function getLatestSha(filePath) {
   try {
     const res = await fetch(
       `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}?ref=${branch}`,
-      {
-        headers: { Authorization: `token ${token}` }
-      }
+      { headers: { Authorization: `token ${token}` } }
     );
     if (res.ok) {
       const data = await res.json();
       return data.sha;
     }
-  } catch (err) {
-    console.warn('SHA fetch failed; new file will be created.');
+  } catch {
+    console.warn("SHA fetch failed; creating new file.");
   }
   return null;
 }
 
-// 🧩 Smarter path resolver — handles relative, absolute, localhost, or remote URLs
+// 🧩 Smarter path extraction
 function extractRepoPath(src) {
   try {
-    // Normalize URL (handles relative vs. absolute)
     const url = new URL(src, window.location.origin);
     const path = url.pathname;
-
-    // Match anything under assets/images, even nested
     const idx = path.lastIndexOf('/assets/images/');
     if (idx !== -1) {
-      const repoPath = 'public' + path.substring(idx);
-      return repoPath.replace(/^\/+/, '');
+      return "public" + path.substring(idx);
     }
   } catch (e) {
-    console.error('Invalid image src:', src, e);
+    console.error("Invalid image src:", src);
   }
   return null;
 }
+
