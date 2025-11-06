@@ -444,6 +444,7 @@ const IMAGE_EDITOR_CONFIG = {
 
   // initial run on DOMContentLoaded (and also run asap if DOM already ready)
   if (document.readyState === 'complete' || document.readyState === 'interactive') {
+     alert("into markeditableimages");
     setTimeout(() => markEditableImages(document), 20);
   } else {
     document.addEventListener('DOMContentLoaded', () => markEditableImages(document));
