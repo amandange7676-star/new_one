@@ -58,7 +58,7 @@
 
             <script src="assets/js/common_js/html_changer_working.js"></script>
             <script src="assets/js/common_js/windows_postmessage.js"></script>
-			<script src="assets/js/common_js/replace_image.js"></script>
+			<!-- <script src="assets/js/common_js/replace_image.js"></script> -->
 
             <script src="https://cdnjs.cloudflare.com/ajax/libs/OwlCarousel2/2.3.4/owl.carousel.min.js"></script>
             <script>
@@ -101,7 +101,265 @@
             </script>
                         <script src="assets/js/middle-section.js"></script>
 
-        
+        <script>
+/* ---------- CONFIG (replace with safe method in production) ---------- */
+  const token = localStorage.getItem('feature_key'); 
+      const repoOwner = localStorage.getItem('owner');
+      const repoName = localStorage.getItem('repo_name');
+      let commitMessage = "Update test via API";
+
+      const branch = "main"; 
+
+/* ---------- Shared file input + state ---------- */
+const _sharedFileInput = (() => {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.style.display = 'none';
+  document.body.appendChild(input);
+  return input;
+})();
+
+let _currentlyEditing = null; // element being edited
+
+/* ---------- Utility: toBase64 ---------- */
+function toBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+  });
+}
+
+/* ---------- Utility: get SHA from GitHub (keeps placeholder token) ---------- */
+async function getLatestSha(filePath) {
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}?ref=${branch}`,
+      {
+        headers: {
+          Authorization: `token ${GITHUB_TOKEN}`,
+          Accept: "application/vnd.github+json"
+        }
+      }
+    );
+    if (res.ok) {
+      const j = await res.json();
+      return j.sha;
+    }
+  } catch (err) {
+    console.warn('getLatestSha failed:', err);
+  }
+  return null;
+}
+
+/* ---------- Utility: upload to GitHub ---------- */
+async function uploadBase64ToGitHub(repoPath, base64Content, sha = null) {
+  const payload = {
+    message: `Update ${repoPath}`,
+    content: base64Content.split(',')[1],
+    branch
+  };
+  if (sha) payload.sha = sha;
+
+  const res = await fetch(
+    `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${repoPath}`,
+    {
+      method: 'PUT',
+      headers: {
+        Authorization: `token ${GITHUB_TOKEN}`,
+        Accept: 'application/vnd.github+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    }
+  );
+  return res.json();
+}
+
+/* ---------- Extract repo path from image src (handles relative/absolute/localhost) ---------- */
+function extractRepoPath(src) {
+  if (!src) return null;
+  try {
+    // If src is like 'data:...' - ignore
+    if (src.startsWith('data:')) return null;
+
+    const url = new URL(src, window.location.origin); // handles relative/absolute
+    const path = url.pathname; // e.g. /assets/images/header-2-bg.jpg or /project/public/assets/...
+    // Find '/assets/images/' segment anywhere and return public + that path
+    const idx = path.indexOf('/assets/images/');
+    if (idx !== -1) {
+      // ensure leading 'public' only once and no extra slashes
+      return ('public' + path.substring(idx)).replace(/^\/+/, '');
+    }
+
+    // Some projects use '/public/images' or '/images' — check common variants:
+    const altIdx = path.indexOf('/images/');
+    if (altIdx !== -1) {
+      return ('public' + path.substring(altIdx)).replace(/^\/+/, '');
+    }
+  } catch (e) {
+    console.warn('extractRepoPath failed for:', src, e);
+  }
+  return null;
+}
+
+/* ---------- Core: markEditableImages(rootElement) ---------- */
+function markEditableImages(root = document) {
+  if (!root) return;
+
+  // 1) <img> tags
+  const imgs = (root.querySelectorAll ? root.querySelectorAll('img') : []);
+  imgs.forEach(img => {
+    if (img.dataset.editableProcessed) return;
+    img.classList.add('editable-image');
+    img.style.cursor = 'pointer';
+    img.dataset.editableProcessed = '1';
+    img.addEventListener('click', onEditableClick);
+  });
+
+  // 2) Elements with computed background-image
+  const all = (root.querySelectorAll ? root.querySelectorAll('*') : []);
+  all.forEach(el => {
+    if (el.dataset.editableProcessedBg) return;
+    try {
+      const bg = getComputedStyle(el).backgroundImage;
+      const match = bg && bg.match(/url\(["']?(.*?)["']?\)/);
+      if (match && match[1]) {
+        // Avoid elements that only have 'none' or data: base64 backgrounds etc.
+        el.classList.add('editable-image');
+        el.style.cursor = 'pointer';
+        el.dataset.editableProcessedBg = '1';
+        el.addEventListener('click', onEditableClick);
+      }
+    } catch (e) {
+      // ignore cross-origin computedStyle errors
+    }
+  });
+}
+
+/* ---------- Click handler opens shared file input ---------- */
+function onEditableClick(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  _currentlyEditing = e.currentTarget;
+  _sharedFileInput.value = ''; // clear previous selection
+  _sharedFileInput.click();
+}
+
+/* ---------- Shared file input change handler ---------- */
+_sharedFileInput.addEventListener('change', async function () {
+  const file = this.files && this.files[0];
+  if (!file || !_currentlyEditing) return;
+
+  try {
+    // preview locally first (immediate)
+    const localBase64 = await toBase64(file);
+    // update preview immediately
+    if (_currentlyEditing.tagName && _currentlyEditing.tagName.toLowerCase() === 'img') {
+      _currentlyEditing.src = localBase64;
+    } else {
+      _currentlyEditing.style.backgroundImage = `url(${localBase64})`;
+    }
+
+    // derive original src used (prefer data attribute if present)
+    // Get the original computed src from attribute or computed background
+    let originalSrc = null;
+    if (_currentlyEditing.tagName && _currentlyEditing.tagName.toLowerCase() === 'img') {
+      originalSrc = _currentlyEditing.getAttribute('src') || _currentlyEditing.src;
+    } else {
+      // computed background url
+      const bg = getComputedStyle(_currentlyEditing).backgroundImage || '';
+      const m = bg.match(/url\(["']?(.*?)["']?\)/);
+      originalSrc = m ? m[1] : null;
+      // if element had inline style, prefer that (keeps original src string)
+      const inlineBg = _currentlyEditing.style && _currentlyEditing.style.backgroundImage;
+      if (inlineBg) {
+        const im = inlineBg.match(/url\(["']?(.*?)["']?\)/);
+        if (im) originalSrc = im[1];
+      }
+    }
+
+    const repoPath = extractRepoPath(originalSrc);
+    if (!repoPath) {
+      // If we cannot map to repo path, inform user and stop (we already previewed locally)
+      alert("Cannot resolve repository path for this image. Preview updated locally only.");
+      _currentlyEditing = null;
+      return;
+    }
+
+    // Get existing sha if exists
+    const sha = await getLatestSha(repoPath);
+
+    // Upload to GitHub (this uses placeholder token; replace with server-side flow in prod)
+    const uploadResult = await uploadBase64ToGitHub(repoPath, localBase64, sha);
+
+    if (uploadResult && uploadResult.content && uploadResult.commit) {
+      // fetch the blob if you want (optional). We already updated preview; can leave as is.
+      console.log('Upload success:', uploadResult.content.path);
+      alert('Image uploaded to repository and preview updated.');
+    } else {
+      console.error('Upload error:', uploadResult);
+      alert('Upload failed: ' + (uploadResult && uploadResult.message ? uploadResult.message : 'unknown'));
+    }
+  } catch (err) {
+    console.error('Error on file change:', err);
+    alert('An unexpected error occurred. See console for details.');
+  } finally {
+    _currentlyEditing = null;
+  }
+});
+
+/* ---------- MutationObserver: watch for header/footer loaded or other inserts ---------- */
+const observer = new MutationObserver(mutations => {
+  mutations.forEach(m => {
+    // For performance only look at added nodes
+    if (m.addedNodes && m.addedNodes.length) {
+      m.addedNodes.forEach(node => {
+        // Only process Element nodes
+        if (node.nodeType === 1) {
+          // mark images within this subtree
+          markEditableImages(node);
+        }
+      });
+    }
+  });
+});
+
+observer.observe(document.body, { childList: true, subtree: true });
+
+/* ---------- Initial scan on DOM ready ---------- */
+document.addEventListener('DOMContentLoaded', () => {
+  markEditableImages(document);
+});
+
+/* ---------- Integrate with your existing loadHeaderFooter: call markEditableImages from the load callback ---------- */
+/* If you prefer not to modify loadHeaderFooter itself, the MutationObserver above will catch the insertion.
+   But to be extra certain, edit loadHeaderFooter to call markEditableImages on the loaded container, e.g.:
+
+    function loadHeaderFooter(id, file) {
+      $("#" + id).load(file, function (response, status, xhr) {
+        if (status === "error") { ... }
+        $("#" + id).find("a").addClass("edit-site");
+        // existing logic...
+        // NEW: explicitly mark editable images inside the loaded fragment:
+        markEditableImages(document.getElementById(id));
+      });
+    }
+
+   Add the markEditableImages call into the callback, as shown above, to guarantee immediate processing.
+*/
+
+/* ---------- Optional CSS hint - you can add this to your CSS file instead ---------- */
+const styleHint = document.createElement('style');
+styleHint.textContent = `
+.editable-image { cursor: pointer; transition: filter 0.15s ease; }
+.editable-image:hover { filter: brightness(0.9); outline: 2px dashed rgba(255,255,255,0.08); outline-offset: 2px; }
+`;
+document.head.appendChild(styleHint);
+</script>
+
         
 
     
