@@ -5,8 +5,9 @@
       let commitMessage = "Update test via API";
 
       const branch = "main"; 
-
+alert('image editing');
 function enableAllImageEditing() {
+      alert('into image editing');
   const images = document.querySelectorAll('img');
 
   images.forEach((img, index) => {
