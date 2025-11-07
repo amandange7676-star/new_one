@@ -15,7 +15,6 @@ function enableAllImageEditing(root = document) {
       img.addEventListener("click", (e) => {
   e.preventDefault();
   e.stopPropagation();
-  e.stopImmediatePropagation(); // <--- stop any other click handlers
   directEdit(img, false);
 }, true); // true = use capturing phase
     }
@@ -123,7 +122,7 @@ function extractRepoPath(src) {
   try {
     const url = new URL(src, window.location.origin);
     const path = url.pathname;
-    if (path.includes("/assets/images/")) return "public" + path;
+    if (path.includes("/assets/images/")) return path;
   } catch { console.error("Invalid image src:", src); }
   return null;
 }
