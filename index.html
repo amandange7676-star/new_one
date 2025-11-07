@@ -256,22 +256,31 @@ function injectEditableImageCSS() {
 // ======= Add .image-editable to images & backgrounds =======
 function enableAllImageEditing(root = document) {
   // <img> tags
-  const imgs = root.querySelectorAll("img:not(.image-editable)");
+  const imgs = root.querySelectorAll("img:not(.image-editable-initialized)");
   imgs.forEach((img) => {
-    img.classList.add("image-editable");
-    img.addEventListener("click", () => handleEdit(img, false));
+    img.classList.add("image-editable", "image-editable-initialized");
+
+    img.addEventListener("click", (e) => {
+      const parentLink = img.closest("a");
+      if (parentLink) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      handleEdit(img, false);
+    });
   });
 
   // Elements with background images
-  const all = root.querySelectorAll("*:not(.image-editable)");
+  const all = root.querySelectorAll("*:not(.image-editable-initialized)");
   all.forEach((el) => {
     const bg = window.getComputedStyle(el).backgroundImage;
     if (bg && bg !== "none" && bg.includes("url(")) {
-      el.classList.add("image-editable");
+      el.classList.add("image-editable", "image-editable-initialized");
       el.addEventListener("click", () => handleEdit(el, true));
     }
   });
 }
+
 
 // ======= Handle Image Edit (Upload Flow) =======
 async function handleEdit(element, isBackground) {
