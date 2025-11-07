@@ -13,10 +13,11 @@ function enableAllImageEditing(root = document) {
       img.classList.add("image-editable", "image-editable-initialized");
 
       img.addEventListener("click", (e) => {
-        const parentLink = img.closest("a");
-        if (parentLink) { e.preventDefault(); e.stopPropagation(); }
-        directEdit(img, false);
-      });
+  e.preventDefault();
+  e.stopPropagation();
+  e.stopImmediatePropagation(); // <--- stop any other click handlers
+  directEdit(img, false);
+}, true); // true = use capturing phase
     }
   });
 
