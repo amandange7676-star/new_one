@@ -25,6 +25,34 @@
             body, #wrapper, #wrapper * {
                 font-family: var(--site-font) !important;
             }
+			.image-editable {
+				  position: relative;
+				  cursor: pointer;
+				  transition: all 0.3s ease-in-out;
+				}
+				
+				.image-editable::after {
+				  content: "🖉 Edit Image";
+				  position: absolute;
+				  top: 0;
+				  left: 0;
+				  right: 0;
+				  bottom: 0;
+				  display: flex;
+				  align-items: center;
+				  justify-content: center;
+				  background: rgba(0, 0, 0, 0.4);
+				  color: #fff;
+				  font-weight: bold;
+				  font-size: 1rem;
+				  opacity: 0;
+				  transition: opacity 0.3s ease-in-out;
+				}
+				
+				.image-editable:hover::after {
+				  opacity: 1;
+				}	
+
         </style>
         </head>
         <body class="theme-1">
@@ -58,7 +86,7 @@
 
             <script src="assets/js/common_js/html_changer_working.js"></script>
             <script src="assets/js/common_js/windows_postmessage.js"></script>
-			<script src="assets/js/common_js/image_editor.js"></script>
+			<!-- <script src="assets/js/common_js/image_editor.js"></script> -->
 			<!-- <script src="assets/js/common_js/replace_image.js"></script> -->
 
             <script src="https://cdnjs.cloudflare.com/ajax/libs/OwlCarousel2/2.3.4/owl.carousel.min.js"></script>
