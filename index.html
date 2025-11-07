@@ -511,9 +511,11 @@ function injectEditableImageCSS() {
 
 // ======= Enable editable class across the whole page =======
 function enableAllImageEditing(root = document) {
+  // <img> tags
   const imgs = root.querySelectorAll("img:not(.image-editable-initialized)");
   imgs.forEach((img) => {
     img.classList.add("image-editable", "image-editable-initialized");
+
     img.addEventListener("click", (e) => {
       const parentLink = img.closest("a");
       if (parentLink) { e.preventDefault(); e.stopPropagation(); }
@@ -521,10 +523,15 @@ function enableAllImageEditing(root = document) {
     });
   });
 
+  // Elements with background images (including sections)
   const all = root.querySelectorAll("*:not(.image-editable-initialized)");
   all.forEach((el) => {
-    const bg = window.getComputedStyle(el).backgroundImage;
-    if (bg && bg !== "none" && bg.includes("url(")) {
+    // Detect both computed background-image and inline style background
+    const bgComputed = window.getComputedStyle(el).backgroundImage;
+    const bgInline = el.style.background || el.style.backgroundImage;
+
+    if ((bgComputed && bgComputed !== "none" && bgComputed.includes("url(")) ||
+        (bgInline && bgInline.includes("url("))) {
       el.classList.add("image-editable", "image-editable-initialized");
       el.addEventListener("click", (e) => {
         e.stopPropagation();
