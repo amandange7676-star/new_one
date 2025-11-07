@@ -130,7 +130,112 @@
                     });
                 }
             </script>
-                        <script src="assets/js/middle-section.js"></script>
+                     <script>
+// ====== Inject CSS dynamically ======
+function injectEditableImageCSS() {
+  const style = document.createElement("style");
+  style.textContent = `
+    .image-editable {
+      position: relative;
+      cursor: pointer;
+      transition: all 0.3s ease-in-out;
+    }
+
+    .image-editable::after {
+      content: "🖉 Edit Image";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.4);
+      color: #fff;
+      font-weight: bold;
+      font-size: 1rem;
+      opacity: 0;
+      transition: opacity 0.3s ease-in-out;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .image-editable:hover::after {
+      opacity: 1;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+// ====== Core image edit detection ======
+function enableAllImageEditing(root = document) {
+  const imgElements = root.querySelectorAll("img:not(.image-editable)");
+  imgElements.forEach((img) => {
+    img.classList.add("image-editable");
+  });
+
+  const allElements = root.querySelectorAll("*:not(.image-editable)");
+  allElements.forEach((el) => {
+    const bg = window.getComputedStyle(el).backgroundImage;
+    if (bg && bg !== "none" && bg.includes("url(")) {
+      el.classList.add("image-editable");
+    }
+  });
+}
+
+// ====== Watch for dynamically added content ======
+function observeDynamicImages() {
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (node.nodeType === 1) {
+          enableAllImageEditing(node);
+        }
+      });
+    });
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+  });
+}
+
+// ====== Initialize ======
+document.addEventListener("DOMContentLoaded", () => {
+  injectEditableImageCSS();
+  enableAllImageEditing();
+  observeDynamicImages();
+});
+
+// ====== Hook into your existing header/footer load logic ======
+function loadHeaderFooter(id, file) {
+  $("#" + id).load(file, function (response, status, xhr) {
+    if (status === "error") {
+      console.error("Error loading " + file + ":", xhr.status, xhr.statusText);
+      return;
+    }
+
+    // Your existing logic
+    $("#" + id).find("a").addClass("edit-site");
+    if (id === "header") {
+      if (fileName.toLowerCase() === "index" || fileName.toLowerCase() === "home") {
+        $("#" + id).find(".main-header-section").css("display", "inline-block");
+      } else {
+        $("#" + id).find(".main-header-section").css("display", "none");
+        $("#" + id).find(".header-breadcrumb-section").css("display", "inline-block");
+        $("#" + id).find(".header-breadcrumb-section .Page_name")
+          .text(fileName.charAt(0).toUpperCase() + fileName.slice(1));
+      }
+    }
+
+    // ✅ Re-run detection after each dynamic load
+    enableAllImageEditing(document.getElementById(id));
+  });
+}
+</script>
+
 
      <script src="assets/js/common_js/edit_image.js"></script>
 
