@@ -364,6 +364,8 @@ function createButtons(){
 function createButton(text,id,handler){
   const btn=document.createElement('button');
   btn.textContent=text; btn.id=id;
+  if (text === "Enable Text Editing") btn.classList.add('edit-site');
+
   btn.addEventListener('click',handler);
   Object.assign(btn.style,{
     padding:'12px 24px',fontSize:'16px',cursor:'pointer',
