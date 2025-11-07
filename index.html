@@ -514,29 +514,44 @@ function enableAllImageEditing(root = document) {
   // <img> tags
   const imgs = root.querySelectorAll("img:not(.image-editable-initialized)");
   imgs.forEach((img) => {
-    img.classList.add("image-editable", "image-editable-initialized");
+    const src = img.getAttribute("src");
+    if (src && src.includes("assets/images")) {
+      img.classList.add("image-editable", "image-editable-initialized");
 
-    img.addEventListener("click", (e) => {
-      const parentLink = img.closest("a");
-      if (parentLink) { e.preventDefault(); e.stopPropagation(); }
-      handleEdit(img, false);
-    });
+      // Add dashed box
+      img.style.outline = "2px dashed #333";
+      img.style.padding = "2px";
+
+      img.addEventListener("click", (e) => {
+        const parentLink = img.closest("a");
+        if (parentLink) { e.preventDefault(); e.stopPropagation(); }
+        handleEdit(img, false);
+      });
+    }
   });
 
-  // Elements with background images (including sections)
+  // Elements with background images
   const all = root.querySelectorAll("*:not(.image-editable-initialized)");
   all.forEach((el) => {
-    // Detect both computed background-image and inline style background
-    const bgComputed = window.getComputedStyle(el).backgroundImage;
-    const bgInline = el.style.background || el.style.backgroundImage;
+    const bgStyle = el.style.background || el.style.backgroundImage;
+    const computedBg = window.getComputedStyle(el).backgroundImage;
+    const bg = bgStyle || computedBg;
 
-    if ((bgComputed && bgComputed !== "none" && bgComputed.includes("url(")) ||
-        (bgInline && bgInline.includes("url("))) {
-      el.classList.add("image-editable", "image-editable-initialized");
-      el.addEventListener("click", (e) => {
-        e.stopPropagation();
-        handleEdit(el, true);
-      });
+    if (bg && bg.includes("url(")) {
+      // Extract URL from background
+      const match = bg.match(/url\(["']?(.*?)["']?\)/);
+      if (match && match[1].includes("assets/images")) {
+        el.classList.add("image-editable", "image-editable-initialized");
+
+        // Add dashed box
+        el.style.outline = "2px dashed #333";
+        el.style.padding = "2px";
+
+        el.addEventListener("click", (e) => {
+          e.stopPropagation();
+          handleEdit(el, true);
+        });
+      }
     }
   });
 }
